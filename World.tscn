@@ -112,4 +112,5 @@ script = ExtResource( 2 )
 
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
 stream = ExtResource( 6 )
+autoplay = true
 [connection signal="timeout" from="UI/ImportTimer" to="GameBoard" method="_on_ImportTimer_timeout"]

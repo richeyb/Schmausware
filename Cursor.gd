@@ -25,3 +25,15 @@ func _process(_delta):
 		gameBoard.placeTile(x, y)
 		
 	position = Vector2(x * TILE_SIZE + OFFSET, y * TILE_SIZE + OFFSET)
+
+func _input(event):
+	if event is InputEventMouseButton:
+		if !event.is_pressed():
+			return
+		var mousePos = event.position
+		var x = (mousePos.x / TILE_SIZE) - OFFSET
+		var y = (mousePos.y / TILE_SIZE) - OFFSET
+		if x >= 0 && x <= Tiles.TILE_WIDTH - 1 && y >= 0 && y <= Tiles.TILE_HEIGHT - 1:
+			gameBoard.placeTile(x, y)
+			position = Vector2(x, y)
+		

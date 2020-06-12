@@ -10,18 +10,28 @@ onready var nwTile = load("res://nw-tile.png")
 onready var exitTile = load("res://gh-logo.png")
 onready var startTile = load("res://candidate.png")
 onready var badTile = load("res://red_cross.png")
+onready var nswTile = load("res://nsw-tile-export.png")
+onready var nseTile = load("res://nse-tile-export.png")
+onready var newTile = load("res://new-tile-export.png")
+onready var neswTile = load("res://nesw-tile-export.png")
+onready var sewTile = load("res://sew-tile-export.png")
 
 onready var tiles = [
-	emptyTile,
-	vertTile,
-	horizTile,
-	neTile,
-	seTile,
-	swTile,
-	nwTile,
-	exitTile,
-	startTile,
-	badTile
+	emptyTile, # 0
+	vertTile, # 1
+	horizTile, # 2
+	neTile, # 3
+	seTile, # 4
+	swTile, # 5
+	nwTile, # 6
+	nswTile, # 7
+	nseTile, # 8
+	newTile, # 9
+	neswTile, # 10
+	sewTile, # 11
+	exitTile, # 12
+	startTile, # 13
+	badTile # 14
 ]
 
 enum Type {
@@ -32,6 +42,11 @@ enum Type {
 	SE,
 	SW,
 	NW,
+	NSW,
+	NSE,
+	NEW,
+	NESW,
+	SEW,
 	EXIT,
 	START,
 	BAD_TILE
