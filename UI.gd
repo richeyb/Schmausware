@@ -7,6 +7,7 @@ onready var nextImportLabel = $NextImportTimer
 onready var importTimer = $ImportTimer
 
 var score = 0.0 setget updateScore
+const BONUS_TIME = 20
 
 func _ready():
 	updateTiles(0, 0)
@@ -24,4 +25,4 @@ func updateTiles(current, next):
 	nextTileImage.texture = Tiles.tiles[next]
 
 func resetTimer():
-	importTimer.start(importTimer.time_left + 20)
+	importTimer.start(importTimer.time_left + BONUS_TIME)

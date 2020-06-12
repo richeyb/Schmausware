@@ -1,0 +1,15 @@
+[remap]
+
+importer="ogg_vorbis"
+type="AudioStreamOGGVorbis"
+path="res://.import/Cheerful Annoyance.ogg-f8ce99226e037f82f9532367f5b6d0fe.oggstr"
+
+[deps]
+
+source_file="res://Cheerful Annoyance.ogg"
+dest_files=[ "res://.import/Cheerful Annoyance.ogg-f8ce99226e037f82f9532367f5b6d0fe.oggstr" ]
+
+[params]
+
+loop=true
+loop_offset=0

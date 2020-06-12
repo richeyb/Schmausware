@@ -8,7 +8,7 @@ const TILE_HEIGHT = Tiles.TILE_HEIGHT
 const TILE_SIZE = Tiles.TILE_SIZE
 const OFFSET = 16
 const PLACE_TILE_PENALTY = 1
-const BONUS = 0.5
+const BONUS = 2
 const STAGE_CLEAR_BONUS = 20
 
 export var currentTile = 0
@@ -25,6 +25,7 @@ var tileQueue = []
 var exitPosition = Vector2(TILE_WIDTH - 1, TILE_HEIGHT - 1)
 
 var startPosition = Vector2(0, 0)
+var clears = 0
 
 func _ready():
 	reset()
@@ -36,15 +37,25 @@ func reset():
 	tilesPlaced = 0
 	startPosition = chooseStartAndExit()
 	exitPosition = chooseStartAndExit()
-	while startPosition.distance_to(exitPosition) < 3:
+	while startPosition.distance_to(exitPosition) < 3 && startPosition.distance_to(exitPosition) < clears * 3:
 		startPosition = chooseStartAndExit()
 		exitPosition = chooseStartAndExit()
 	clearMap()
 	setupTileQueue()
 	setUpMap()
+	addBadTiles()
 	drawMap()
 	popTileQueue()
 	ui.resetTimer()
+
+func addBadTiles():
+	for i in range(clears + 1):
+		addBadTile()
+	
+func addBadTile():
+	var x = randi() % TILE_WIDTH - 3 + 1
+	var y = randi() % TILE_HEIGHT - 3 + 1
+	tiles[y][x] = Tiles.Type.BAD_TILE
 	
 func chooseStartAndExit():
 	var x = 0
@@ -217,6 +228,9 @@ func popTileQueue():
 	ui.updateTiles(currentTile, tileQueue[0])
 
 func placeTile(x, y):
+	if tiles[y][x] == Tiles.Type.BAD_TILE:
+		return
+	
 	tiles[y][x] = currentTile
 	ui.score -= PLACE_TILE_PENALTY
 	clearMap()
@@ -239,9 +253,10 @@ func gameOver():
 	Scene.goto_scene("res://GameOver.tscn")
 	
 func stageCleared():
+	clears += 1
 	reset()
 	# Points are:
 	# $20mm ARR
-	# - (tiles placed * penalty)
+	# - (unused tiles * penalty)
 	# + (tiles to exit * bonus)
-	ui.score = ui.score + STAGE_CLEAR_BONUS + (pathBonus * BONUS)
+	ui.score = ui.score - ((tilesPlaced - pathBonus) * PLACE_TILE_PENALTY) + STAGE_CLEAR_BONUS + (pathBonus * BONUS)
