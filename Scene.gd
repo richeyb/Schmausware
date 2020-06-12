@@ -4,6 +4,15 @@ var current_scene = null
 
 var score = 0
 
+enum Difficulty {
+	EASY,
+	MEDIUM,
+	HARD
+}
+
+var difficulty = Difficulty.HARD
+var useGreenday = false
+
 func _ready():
 	var root = get_tree().get_root()
 	current_scene = root.get_child(root.get_child_count() - 1)

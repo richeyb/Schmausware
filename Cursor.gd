@@ -24,6 +24,9 @@ func _process(_delta):
 	elif Input.is_action_just_pressed("ui_select"):
 		gameBoard.placeTile(x, y)
 		
+	x = min(x, Tiles.TILE_WIDTH - 1)
+	y = min(y, Tiles.TILE_HEIGHT - 1)
+		
 	position = Vector2(x * TILE_SIZE + OFFSET, y * TILE_SIZE + OFFSET)
 
 func _input(event):
@@ -31,9 +34,17 @@ func _input(event):
 		if !event.is_pressed():
 			return
 		var mousePos = event.position
-		var x = (mousePos.x / TILE_SIZE) - OFFSET
-		var y = (mousePos.y / TILE_SIZE) - OFFSET
-		if x >= 0 && x <= Tiles.TILE_WIDTH - 1 && y >= 0 && y <= Tiles.TILE_HEIGHT - 1:
+		var mx = floor(mousePos.x / TILE_SIZE)
+		var my = floor(mousePos.y / TILE_SIZE)
+		if mx >= Tiles.TILE_WIDTH || my >= Tiles.TILE_HEIGHT:
+			return
+		x = mx
+		y = my
+		if x >= 0 && x <= Tiles.TILE_WIDTH && y >= 0 && y <= Tiles.TILE_HEIGHT:
 			gameBoard.placeTile(x, y)
-			position = Vector2(x, y)
+			position = Vector2(x * TILE_SIZE + OFFSET, y * TILE_SIZE + OFFSET)
 		
+func moveTo(nx, ny):
+	x = nx
+	y = ny
+	position = Vector2(x * TILE_SIZE + OFFSET, y * TILE_SIZE + OFFSET)

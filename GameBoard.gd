@@ -11,17 +11,9 @@ const PLACE_TILE_PENALTY = 1
 const BONUS = 2
 const STAGE_CLEAR_BONUS = 20
 
-enum Difficulty {
-	EASY,
-	MEDIUM,
-	HARD
-}
-
-export(int) var difficulty = Difficulty.HARD
-
 export var currentTile = 0
 
-const QUEUE_SIZE = Tiles.TILE_HEIGHT * Tiles.TILE_WIDTH
+const QUEUE_SIZE = Tiles.TILE_HEIGHT * Tiles.TILE_WIDTH * 5
 
 var tilesPlaced = 0
 var pathBonus = 0
@@ -35,27 +27,39 @@ var exitPosition = Vector2(TILE_WIDTH - 1, TILE_HEIGHT - 1)
 var startPosition = Vector2(0, 0)
 var clears = 0
 
+var walked = []
+
+onready var cursor = get_node("/root/World/Cursor")
+
 func _ready():
+	clears = 0
 	reset()
+	
+func getDistance(a, b):
+	return abs(floor(b.y) - floor(a.y)) + abs(floor(b.x) - floor(a.x))
 	
 func reset():
 	randomize()
 	tiles = []
 	tileQueue = []
 	tilesPlaced = 0
-	clears = 0
 	startPosition = chooseStartAndExit()
 	exitPosition = chooseStartAndExit()
-	while startPosition.distance_to(exitPosition) < 3 && startPosition.distance_to(exitPosition) < clears * 3:
+	var distance = getDistance(startPosition, exitPosition)
+	#print("1 - Distance is " + str(distance) + " [3, " + str(max(clears * 3, 3)) + "]")
+	while distance < 3 || distance > max(clears * 3, 3) || distance < min(max(clears * 2, 3), 10):
 		startPosition = chooseStartAndExit()
 		exitPosition = chooseStartAndExit()
+		distance = getDistance(startPosition, exitPosition)
+		#print("2 - Distance is " + str(distance) + " [3, " + str(max(clears * 3, 3)) + "]")
+	cursor.moveTo(startPosition.x, startPosition.y)
 	clearMap()
 	setupTileQueue()
 	setUpMap()
 	addBadTiles()
 	drawMap()
 	popTileQueue()
-	ui.resetTimer()
+	ui.resetTimer(clears)
 
 func addBadTiles():
 	for i in range(clears + 1):
@@ -64,7 +68,6 @@ func addBadTiles():
 func addBadTile():
 	var x = randi() % (TILE_WIDTH - 2) + 1
 	var y = randi() % (TILE_HEIGHT - 2) + 1
-	print("Adding bad tile: " + str(Tiles.Type.BAD_TILE))
 	tiles[y][x] = Tiles.Type.BAD_TILE
 	
 func chooseStartAndExit():
@@ -92,11 +95,11 @@ func chooseStartAndExit():
 func setupTileQueue():
 	randomize()
 	var validTiles = []
-	if difficulty == Difficulty.EASY:
+	if Scene.difficulty == Scene.Difficulty.EASY:
 		validTiles = [Tiles.Type.NE, Tiles.Type.SE, Tiles.Type.SW, Tiles.Type.NW, Tiles.Type.VERT, Tiles.Type.HORIZ, Tiles.Type.NESW, Tiles.Type.NSE, Tiles.Type.NSW, Tiles.Type.NEW, Tiles.Type.SEW]
-	elif difficulty == Difficulty.MEDIUM:
+	elif Scene.difficulty == Scene.Difficulty.MEDIUM:
 		validTiles = [Tiles.Type.NE, Tiles.Type.SE, Tiles.Type.SW, Tiles.Type.NW, Tiles.Type.VERT, Tiles.Type.HORIZ, Tiles.Type.NESW]
-	elif difficulty == Difficulty.HARD:
+	elif Scene.difficulty == Scene.Difficulty.HARD:
 		validTiles = [Tiles.Type.NE, Tiles.Type.SE, Tiles.Type.SW, Tiles.Type.NW, Tiles.Type.VERT, Tiles.Type.HORIZ]
 	for i in range(QUEUE_SIZE / validTiles.size()):
 		var pickFrom = validTiles.duplicate()
@@ -105,13 +108,22 @@ func setupTileQueue():
 			tileQueue.append(pickFrom.pop_back())
 
 func setUpMap():
+	walked = []
 	for y in range(TILE_HEIGHT):
 		tiles.append([])
+		walked.append([])
 		for x in range(TILE_WIDTH):
-			#var idx = randi() % 7
 			tiles[y].append(0)
+			walked.append(0)
 	tiles[startPosition.y][startPosition.x] = Tiles.Type.START
 	tiles[exitPosition.y][exitPosition.x] = Tiles.Type.EXIT
+
+func resetWalked():
+	walked = []
+	for y in range(TILE_HEIGHT):
+		walked.append([])
+		for x in range(TILE_WIDTH):
+			walked[y].append(0)
 
 func clearMap():
 	for child in get_children():
@@ -141,6 +153,7 @@ func checkForPath(prev_x, prev_y, x, y, score = 0):
 		return false
 	if y < 0 or y >= TILE_HEIGHT:
 		return false
+	walked[y][x] = 1
 	var tile = tiles[y][x]
 	if tile == Tiles.Type.EXIT:
 		pathBonus = score
@@ -151,153 +164,67 @@ func checkForPath(prev_x, prev_y, x, y, score = 0):
 		Tiles.Type.EMPTY:
 			return false
 		Tiles.Type.HORIZ:
-			if prev_x < x && prev_y == y:
-				# Coming from the west, exit to the east
-				return exitEast(x, y, score)
-			else:
-				# Coming from the east, exit to the west
-				return exitWest(x, y, score)
+			return exitEast(x, y, score) || exitWest(x, y, score)
 		Tiles.Type.VERT:
-			if prev_y < y:
-				# Coming from the north, exit to the south
-				return exitSouth(x, y, score)
-			else:
-				# Coming from the south, exit to the north
-				return exitNorth(x, y, score)
+			return exitNorth(x, y, score) || exitSouth(x, y, score)
 		Tiles.Type.NE:
-			if prev_x == x:
-				# Coming from north, exit to east
-				return exitEast(x, y, score)
-			else:
-				# Coming from east, exit to north
-				return exitNorth(x, y, score)
+			return exitEast(x, y, score) || exitNorth(x, y, score)
 		Tiles.Type.NW:
-			if prev_x == x:
-				# Coming from north, exit to west
-				return exitWest(x, y, score)
-			else:
-				# Coming from west, exit to north
-				return exitNorth(x, y, score)
+			return exitWest(x, y, score) || exitNorth(x, y, score)
 		Tiles.Type.SE:
-			if prev_x == x:
-				# Coming from the south, exit to the east
-				return exitEast(x, y, score)
-			else:
-				# Coming from the east, exit to the south
-				return exitSouth(x, y, score)
+			return exitEast(x, y, score) || exitSouth(x, y, score)
 		Tiles.Type.SW:
-			if prev_x == x:
-				# Coming from the south, exit to the west
-				return exitWest(x, y, score)
-			else:
-				# Coming from the west, exit to the south
-				return exitSouth(x, y, score)
+			return exitWest(x, y, score) || exitSouth(x, y, score)
 		Tiles.Type.NESW:
-			if prev_x == x && prev_y < y:
-				# Came from the north
-				return exitEast(x, y, score) || exitWest(x, y, score) || exitSouth(x, y, score)
-			elif prev_x == x && prev_y > y:
-				# Came from the south
-				return exitEast(x, y, score) || exitWest(x, y, score) || exitNorth(x, y, score)
-			elif prev_x < x && prev_y == y:
-				# Came from the west
-				return exitEast(x, y, score) || exitNorth(x, y, score) || exitSouth(x, y, score)
-			else:
-				# Came from the east
-				return exitWest(x, y, score) || exitNorth(x, y, score) || exitSouth(x, y, score)
+			return exitEast(x, y, score) || exitWest(x, y, score) || exitNorth(x, y, score) || exitSouth(x, y, score)
 		Tiles.Type.NSE:
-			if prev_x == x && prev_y < y:
-				# Came from the north
-				return exitEast(x, y, score) || exitWest(x, y, score) || exitSouth(x, y, score)
-			elif prev_x == x && prev_y > y:
-				# Came from the south
-				return exitEast(x, y, score) || exitWest(x, y, score) || exitNorth(x, y, score)
-			else:
-				# Came from the east
-				return exitWest(x, y, score) || exitNorth(x, y, score) || exitSouth(x, y, score)
+			return exitEast(x, y, score) || exitNorth(x, y, score) || exitSouth(x, y, score)
 		Tiles.Type.NSW:
-			if prev_x == x && prev_y < y:
-				# Came from the north
-				return exitEast(x, y, score) || exitWest(x, y, score) || exitSouth(x, y, score)
-			elif prev_x == x && prev_y > y:
-				# Came from the south
-				return exitEast(x, y, score) || exitWest(x, y, score) || exitNorth(x, y, score)
-			else:
-				# Came from the west
-				return exitEast(x, y, score) || exitNorth(x, y, score) || exitSouth(x, y, score)
+			return exitWest(x, y, score) || exitNorth(x, y, score) || exitSouth(x, y, score)
 		Tiles.Type.NEW:
-			if prev_x == x && prev_y < y:
-				# Came from the north
-				return exitEast(x, y, score) || exitWest(x, y, score) || exitSouth(x, y, score)
-			elif prev_x < x && prev_y == y:
-				# Came from the west
-				return exitEast(x, y, score) || exitNorth(x, y, score) || exitSouth(x, y, score)
-			else:
-				# Came from the east
-				return exitWest(x, y, score) || exitNorth(x, y, score) || exitSouth(x, y, score)
+			return exitEast(x, y, score) || exitWest(x, y, score) || exitNorth(x, y, score)
 		Tiles.Type.SEW:
-			if prev_x == x && prev_y > y:
-				# Came from the south
-				return exitEast(x, y, score) || exitWest(x, y, score) || exitNorth(x, y, score)
-			elif prev_x < x && prev_y == y:
-				# Came from the west
-				return exitEast(x, y, score) || exitNorth(x, y, score) || exitSouth(x, y, score)
-			else:
-				# Came from the east
-				return exitWest(x, y, score) || exitNorth(x, y, score) || exitSouth(x, y, score)
+			return exitEast(x, y, score) || exitWest(x, y, score) || exitSouth(x, y, score)
 		_:
 			print("Found tile:" + str(tile))
 				
-func exitEast(x, y, score = 0):
-	var nx = x + 1
-	var ny = y
+func validExit(x, y, nx, ny, valid, score):
 	if invalidExit(nx, ny):
 		return false
+	if walked[ny][nx] == 1:
+		return false
 	var t = tiles[ny][nx]
-	var valid = [Tiles.Type.NW, Tiles.Type.SW, Tiles.Type.HORIZ, Tiles.Type.EXIT, Tiles.Type.NEW, Tiles.Type.NESW, Tiles.Type.SEW, Tiles.Type.NSW]
 	if valid.has(t):
 		return checkForPath(x, y, nx, ny, score + 1)
 	else:
 		return false
-	
+		
 func invalidExit(nx, ny):
 	return nx < 0 || ny < 0 || ny >= tiles.size() || nx >= tiles[ny].size()
+
+func exitEast(x, y, score = 0):
+	var nx = x + 1
+	var ny = y
+	var valid = [Tiles.Type.NW, Tiles.Type.SW, Tiles.Type.HORIZ, Tiles.Type.EXIT, Tiles.Type.NEW, Tiles.Type.NESW, Tiles.Type.SEW, Tiles.Type.NSW]
+	return validExit(x, y, nx, ny, valid, score)
 	
 func exitWest(x, y, score = 0):
 	var nx = x - 1
 	var ny = y
-	if invalidExit(nx, ny):
-		return false
-	var t = tiles[ny][nx]
 	var valid = [Tiles.Type.NE, Tiles.Type.SE, Tiles.Type.HORIZ, Tiles.Type.EXIT, Tiles.Type.NESW, Tiles.Type.NSE, Tiles.Type.NEW, Tiles.Type.SEW]
-	if valid.has(t):
-		return checkForPath(x, y, nx, ny, score + 1)
-	else:
-		return false
+	return validExit(x, y, nx, ny, valid, score)
 	
 func exitNorth(x, y, score = 0):
 	var nx = x
 	var ny = y - 1
-	if invalidExit(nx, ny):
-		return false
-	var t = tiles[ny][nx]
 	var valid = [Tiles.Type.SE, Tiles.Type.SW, Tiles.Type.VERT, Tiles.Type.EXIT, Tiles.Type.NESW, Tiles.Type.NSE, Tiles.Type.NSW, Tiles.Type.SEW]
-	if valid.has(t):
-		return checkForPath(x, y, nx, ny, score + 1)
-	else:
-		return false
+	return validExit(x, y, nx, ny, valid, score)
 
 func exitSouth(x, y, score = 0):
 	var nx = x 
 	var ny = y + 1
-	if invalidExit(nx, ny):
-		return false
-	var t = tiles[ny][nx]
 	var valid = [Tiles.Type.NE, Tiles.Type.NW, Tiles.Type.VERT, Tiles.Type.EXIT, Tiles.Type.NSW, Tiles.Type.NSE, Tiles.Type.NEW, Tiles.Type.NESW]
-	if valid.has(t):
-		return checkForPath(x, y, nx, ny, score + 1)
-	else:
-		return false
+	return validExit(x, y, nx, ny, valid, score)
 
 func popTileQueue():
 	currentTile = tileQueue.pop_front()
@@ -305,7 +232,9 @@ func popTileQueue():
 		ui.updateTiles(currentTile, tileQueue[0])
 
 func placeTile(x, y):
-	if tiles[y][x] == Tiles.Type.BAD_TILE:
+	if y >= tiles.size() || x >= tiles[y].size():
+		return
+	if tiles[y][x] == Tiles.Type.BAD_TILE || tiles[y][x] == Tiles.Type.START || tiles[y][x] == Tiles.Type.EXIT:
 		return
 	
 	tiles[y][x] = currentTile
@@ -313,22 +242,16 @@ func placeTile(x, y):
 	clearMap()
 	drawMap()
 	popTileQueue()
+	resetWalked()
 	var validPath = checkForPath(0, 0, startPosition.x, startPosition.y)
 	if validPath:
 		stageCleared()
 
 func _on_ImportTimer_timeout():
-	print("----- NEW CHECK -----")
-	print("Gonna check for a path from the start to the exit now...")
-	var validPath = checkForPath(0, 0, startPosition.x, startPosition.y)
-	if !validPath:
-		gameOver()
-
-func gameOver():
 	ui.score = ui.score - (tilesPlaced * PLACE_TILE_PENALTY)
 	Scene.score = ui.score
 	Scene.goto_scene("res://GameOver.tscn")
-	
+
 func stageCleared():
 	clears += 1
 	reset()
@@ -336,4 +259,9 @@ func stageCleared():
 	# $20mm ARR
 	# - (unused tiles * penalty)
 	# + (tiles to exit * bonus)
-	ui.score = ui.score - ((tilesPlaced - pathBonus) * PLACE_TILE_PENALTY) + STAGE_CLEAR_BONUS + (pathBonus * BONUS)
+	var difficultyModifier = 1.0
+	if Scene.difficulty == Scene.Difficulty.MEDIUM:
+		difficultyModifier = 0.8
+	elif Scene.difficulty == Scene.Difficulty.EASY:
+		difficultyModifier = 0.6
+	ui.score = ui.score - ((tilesPlaced - pathBonus) * PLACE_TILE_PENALTY) + STAGE_CLEAR_BONUS + (pathBonus * BONUS) * difficultyModifier

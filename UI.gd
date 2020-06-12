@@ -24,5 +24,5 @@ func updateTiles(current, next):
 	currentTileImage.texture = Tiles.tiles[current]
 	nextTileImage.texture = Tiles.tiles[next]
 
-func resetTimer():
-	importTimer.start(importTimer.time_left + BONUS_TIME)
+func resetTimer(clears = 0):
+	importTimer.start(importTimer.time_left + max((BONUS_TIME - clears), 0))
